@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Santoro's Italian Restaurant</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html">Santoro's Admin</a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Website</a>
+                </li>
+                <li class="nav-item">
+                    <a href="admin-login.html" class="nav-link active">Admin Login</a>
+                </li>
+            </ul>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Admin Login Form -->
+    <main class="auth-page">
+        <div class="container">
+            <div class="auth-container">
+                <div class="auth-form">
+                    <div class="admin-header">
+                        <i class="fas fa-shield-alt" style="font-size: 3rem; color: #b91c1c; margin-bottom: 1rem;"></i>
+                        <h1>Admin Login</h1>
+                        <p>Access the restaurant management dashboard</p>
+                    </div>
+                    
+                    <form id="adminLoginForm">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="rememberMe" name="rememberMe">
+                            <label for="rememberMe">Remember me for 30 days</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Login to Dashboard</button>
+                    </form>
+
+                    <div id="error-message" class="error-message" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Invalid email or password</p>
+                    </div>
+
+                    <div class="admin-info">
+                        <p><strong>Admin Features:</strong></p>
+                        <ul>
+                            <li><i class="fas fa-calendar-check"></i> Manage Reservations</li>
+                            <li><i class="fas fa-boxes"></i> Inventory Control</li>
+                            <li><i class="fas fa-utensils"></i> Menu Management</li>
+                            <li><i class="fas fa-chart-bar"></i> Analytics Dashboard</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 Santoro's Italian Restaurant Admin Panel. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+          console.log("🔐 Admin login page loaded")
+          
+          // Check if admin is already logged in
+          const adminToken = localStorage.getItem("adminToken")
+          if (adminToken) {
+            console.log("✅ Admin already logged in, redirecting...")
+            window.location.href = "admin.html"
+            return
+          }
+
+          // Setup login form
+          document.getElementById("adminLoginForm").addEventListener("submit", handleAdminLogin)
+        })
+
+        async function handleAdminLogin(e) {
+          e.preventDefault()
+
+          console.log("=== INICIANDO LOGIN ADMIN ===")
+
+          const formData = new FormData(e.target)
+          const loginData = {
+            email: formData.get("email"),
+            password: formData.get("password"),
+            rememberMe: formData.get("rememberMe") === "on"
+          }
+
+          console.log("Dados do login:", { email: loginData.email, rememberMe: loginData.rememberMe })
+
+          try {
+            // Show loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]')
+            const originalText = submitBtn.textContent
+            submitBtn.textContent = "Logging in..."
+            submitBtn.disabled = true
+
+            // Hide previous error messages
+            hideMessage("error-message")
+
+            console.log("Enviando para API de login admin...")
+
+            const response = await fetch("/api/admin/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(loginData),
+            })
+
+            console.log("Status da resposta:", response.status)
+
+            const responseData = await response.json()
+            console.log("Dados da resposta:", responseData)
+
+            if (!response.ok) {
+              throw new Error(responseData.message || "Erro no login")
+            }
+
+            if (responseData.success) {
+              // Store session data
+              console.log("✅ Login admin bem-sucedido, salvando sessão...")
+              
+              const tokenData = {
+                token: responseData.token,
+                admin: responseData.admin,
+                loginTime: new Date().toISOString()
+              }
+              
+              localStorage.setItem("adminToken", responseData.token)
+              localStorage.setItem("adminData", JSON.stringify(tokenData))
+
+              // Update navigation immediately
+              if (window.refreshNavigation) {
+                window.refreshNavigation()
+              }
+
+              // Redirect to admin dashboard
+              console.log("🚀 Redirecionando para dashboard...")
+              window.location.href = "admin.html"
+            } else {
+              throw new Error(responseData.message || "Login falhou")
+            }
+          } catch (error) {
+            console.error("❌ Erro no login admin:", error)
+            showMessage("error-message", error.message, true)
+          } finally {
+            // Reset button state
+            const submitBtn = e.target.querySelector('button[type="submit"]')
+            if (submitBtn) {
+              submitBtn.textContent = "Login to Dashboard"
+              submitBtn.disabled = false
+            }
+          }
+        }
+
+        function hideMessage(messageId) {
+          const messageElement = document.getElementById(messageId)
+          if (messageElement) {
+            messageElement.style.display = "none"
+          }
+        }
+
+        function showMessage(messageId, messageText = "", isError = false) {
+          const messageElement = document.getElementById(messageId)
+          if (messageElement) {
+            messageElement.style.display = "block"
+
+            if (messageText) {
+              const messageTextElement = messageElement.querySelector("p")
+              if (messageTextElement) {
+                messageTextElement.textContent = messageText
+              }
+            }
+
+            // Auto-hide success messages after 5 seconds
+            if (!isError) {
+              setTimeout(() => {
+                messageElement.style.display = "none"
+              }, 5000)
+            }
+          }
+        }
+    </script>
+
+    <style>
+        .admin-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .admin-header h1 {
+            color: #b91c1c;
+            margin-bottom: 0.5rem;
+        }
+
+        .admin-header p {
+            color: #666;
+            margin-bottom: 0;
+        }
+
+        .admin-info {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #b91c1c;
+        }
+
+        .admin-info p {
+            margin-bottom: 1rem;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .admin-info ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .admin-info li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            color: #4b5563;
+        }
+
+        .admin-info li i {
+            color: #b91c1c;
+            width: 16px;
+        }
+    </style>
+</body>
+</html>
